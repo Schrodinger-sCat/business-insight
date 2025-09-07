@@ -88,14 +88,10 @@ public class ChromaVectorDbController {
         try {
             List<String> docIds = pdfVectorService.upsertPdf(file);
             return ResponseEntity.ok(docIds);
-        } catch (IOException e) {
+        } catch (Exception e) {
             List<String> list = new ArrayList<>();
             list.add(e.getMessage());
             return ResponseEntity.status(500).body(list);
-        } catch (IllegalArgumentException e) {
-            List<String> list = new ArrayList<>();
-            list.add(e.getMessage());
-            return ResponseEntity.badRequest().body(Collections.emptyList());
         }
     }
 }

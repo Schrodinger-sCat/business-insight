@@ -1,27 +1,34 @@
 package org.brac.springai.business.insight.controller;
 
-
 import org.brac.springai.business.insight.requestBody.UpsertRequest;
+import org.brac.springai.business.insight.service.PdfVectorService;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/qdrant")
-public class QdrantVectorDbController {
+@RequestMapping("/chroma")
+public class ChromaVectorDbController {
 
     private final VectorStore vectorStore;
 
-    public QdrantVectorDbController(VectorStore vectorStore) {
-        this.vectorStore = vectorStore;
-    }
+    private final PdfVectorService pdfVectorService;
 
+
+    public ChromaVectorDbController(VectorStore vectorStore, PdfVectorService pdfVectorService) {
+        this.vectorStore = vectorStore;
+        this.pdfVectorService = pdfVectorService;
+    }
 
     @PostMapping("/upsert/text")
     public ResponseEntity<String> upsertText(@RequestParam String text) {
@@ -34,10 +41,9 @@ public class QdrantVectorDbController {
                 .metadata("source", "manual-upsert")
                 .build();
 
-        vectorStore.add(List.of(doc)); // Automatically embeds and stores the doc
+        vectorStore.add(List.of(doc)); // Embeds and stores automatically
         return ResponseEntity.ok("Inserted document with ID: " + doc.getId());
     }
-
 
     @PostMapping("/upsert/doc")
     public ResponseEntity<String> upsertDocument(@RequestBody UpsertRequest request) {
@@ -53,7 +59,6 @@ public class QdrantVectorDbController {
         vectorStore.add(List.of(doc));
         return ResponseEntity.ok("Inserted document with ID: " + doc.getId());
     }
-
 
     @GetMapping("/search")
     public ResponseEntity<List<Document>> searchSimilar(
@@ -76,5 +81,21 @@ public class QdrantVectorDbController {
 
         SearchRequest request = builder.build();
         return ResponseEntity.ok(vectorStore.similaritySearch(request));
+    }
+
+    @PostMapping("/upsert/pdf")
+    public ResponseEntity<List<String>> upsertPdf(@RequestParam("file") MultipartFile file) {
+        try {
+            List<String> docIds = pdfVectorService.upsertPdf(file);
+            return ResponseEntity.ok(docIds);
+        } catch (IOException e) {
+            List<String> list = new ArrayList<>();
+            list.add(e.getMessage());
+            return ResponseEntity.status(500).body(list);
+        } catch (IllegalArgumentException e) {
+            List<String> list = new ArrayList<>();
+            list.add(e.getMessage());
+            return ResponseEntity.badRequest().body(Collections.emptyList());
+        }
     }
 }
